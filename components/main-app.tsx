@@ -15,7 +15,7 @@ import { hydrateKvDb, isKvHydrated } from "@/lib/kv-db";
 import { getThemeAssetMap, readThemeProfile } from "@/lib/theme-storage";
 import { resolveActiveIconSkins, type ThemeProfile } from "@/lib/theme-types";
 import { hasPendingMcpOAuthCallback } from "@/lib/tool-executor";
-import { shouldRequestPwaFullscreen } from "@/lib/pwa-display-mode";
+import { getRuntimePwaDisplayMode, readPwaDisplayPreference } from "@/lib/pwa-display-mode";
 
 const TEXT = {
   loading: "\u52A0\u8F7D\u4E2D...",
@@ -266,22 +266,28 @@ export function MainApp() {
       }
     })();
 
-    // 安卓全屏兜底。是否请求全屏在每次点击时读取，设置切换后无需重载。
+    // The installed PWA uses the manifest's display mode. Never request DOM
+    // fullscreen on every click: Android browsers show an exit-fullscreen hint
+    // whenever the request re-enters fullscreen (e.g. after keyboard/toolbar
+    // interactions), which would obscure the bottom composer repeatedly.
+    // Keep a single gesture-based fallback only for an explicit user preference.
     const isMobile = window.matchMedia("(max-width: 500px) and (hover: none) and (pointer: coarse)").matches;
     if (!isMobile) return () => {
       cancelled = true;
     };
 
-    function tryFullscreen() {
-      if (!shouldRequestPwaFullscreen()) return;
-      const doc = document.documentElement;
-      if (document.fullscreenElement) return;
-      doc.requestFullscreen?.().catch(() => { });
+    let fullscreenAttempted = false;
+    function tryFullscreenOnEntry(event: MouseEvent) {
+      if (fullscreenAttempted || readPwaDisplayPreference(document.cookie) !== "fullscreen") return;
+      if (!(event.target instanceof Element) || !event.target.closest(".splash-enter-button")) return;
+      fullscreenAttempted = true;
+      if (getRuntimePwaDisplayMode() === "fullscreen" || document.fullscreenElement) return;
+      void document.documentElement.requestFullscreen?.().catch(() => { });
     }
-    document.addEventListener("click", tryFullscreen);
+    document.addEventListener("click", tryFullscreenOnEntry);
     return () => {
       cancelled = true;
-      document.removeEventListener("click", tryFullscreen);
+      document.removeEventListener("click", tryFullscreenOnEntry);
     };
   }, [initAttempt]);
 
