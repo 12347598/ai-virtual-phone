@@ -17,6 +17,7 @@ export const runtime = "nodejs";
 export function GET(request: NextRequest) {
   const ua = request.headers.get("user-agent") || "";
   const isEdge = /Edg/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
   const preference = readPwaDisplayPreference(request.headers.get("cookie") || "");
 
   const manifest = preference === "fullscreen"
@@ -39,7 +40,16 @@ export function GET(request: NextRequest) {
             display_override: ["minimal-ui", "standalone"],
             theme_color: "#f8f7f2",
           }
-        : baseManifest;
+        : isAndroid
+          ? {
+              // Android browsers without display_override support must still
+              // request an immersive installed experience; the user's explicit
+              // standalone preference above always takes precedence.
+              ...baseManifest,
+              display: "fullscreen",
+              display_override: ["fullscreen", "standalone"],
+            }
+          : baseManifest;
 
   return new NextResponse(JSON.stringify(manifest), {
     headers: {
