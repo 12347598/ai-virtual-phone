@@ -955,14 +955,20 @@ function useAndroidCaretKeyboardLift() {
       const keyboardTop = viewport.offsetTop + viewport.height;
       const keyboardInset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
       const targetRect = getKeyboardTargetRect(element);
-      const gap = 36;
+      // Keep the entire chat/QA composer accessible, not just the caret.
+      // Other editable controls retain the existing caret-based behavior.
+      const composer = element.closest(".chat-input-bar, .qa-composer-wrap");
+      const composerBottom = composer instanceof HTMLElement
+        ? composer.getBoundingClientRect().bottom
+        : targetRect.bottom;
+      const gap = composer ? 8 : 36;
 
       if (keyboardInset < 80) {
         applyLift(0);
         return;
       }
 
-      const naturalBottom = targetRect.bottom + currentLift;
+      const naturalBottom = Math.max(targetRect.bottom, composerBottom) + currentLift;
       const neededLift = Math.max(0, naturalBottom + gap - keyboardTop);
       applyLift(Math.min(keyboardInset, neededLift));
     };
