@@ -1132,6 +1132,11 @@
     will-change: transform;
   }
 
+  /* Balance the optional status-bar upward offset so the dock is not cropped. */
+  .phone-shell-wrap .phone-shell {
+    height: calc(var(--phone-screen-height) + var(--status-bar-drop, 0px));
+  }
+
   .phone-shell-wrap .phone-case {
     padding: 0;
     border: 0;
